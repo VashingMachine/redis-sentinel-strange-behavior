@@ -1,0 +1,79 @@
+version: '2'
+
+networks:
+  app-tier:
+    driver: bridge
+
+services:
+  app:
+    image: golang:1.18.5-alpine3.16
+    volumes:
+      - .:/workdir
+    command: [sh, -c, "cd /workdir && go build && ./redis-sentinel-problem"]
+    environment:
+      ADDRESSES: "redis-sentinel-1:26379 redis-sentinel-2:26379 redis-sentinel-3:26379"
+      MASTER: "mymaster"
+      PASSWORD: "str0ng_passw0rd"
+    depends_on:
+      - redis
+      - redis-slave
+      - redis-sentinel-1
+      - redis-sentinel-2
+      - redis-sentinel-3
+    networks:
+      - app-tier
+
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - REDIS_PASSWORD=str0ng_passw0rd
+    networks:
+      - app-tier
+    ports:
+      - '6379'
+  redis-slave:
+    image: 'bitnami/redis:latest'
+    environment:
+      - REDIS_REPLICATION_MODE=slave
+      - REDIS_MASTER_HOST=redis
+      - REDIS_MASTER_PASSWORD=str0ng_passw0rd
+      - REDIS_PASSWORD=str0ng_passw0rd
+    ports:
+      - '6379'
+    depends_on:
+      - redis
+    networks:
+      - app-tier
+  redis-sentinel-1:
+    image: 'bitnami/redis-sentinel:latest'
+    environment:
+      - REDIS_MASTER_PASSWORD=str0ng_passw0rd
+    depends_on:
+      - redis
+      - redis-slave
+    ports:
+      - '26379'
+    networks:
+      - app-tier
+
+  redis-sentinel-2:
+    image: 'bitnami/redis-sentinel:latest'
+    environment:
+      - REDIS_MASTER_PASSWORD=str0ng_passw0rd
+    depends_on:
+      - redis
+      - redis-slave
+    ports:
+      - '26379'
+    networks:
+      - app-tier
+
+  redis-sentinel-3:
+    image: 'bitnami/redis-sentinel:latest'
+    environment:
+      - REDIS_MASTER_PASSWORD=str0ng_passw0rd
+    ports:
+      - '26379'
+    networks:
+      - app-tier
